@@ -113,6 +113,43 @@ AC_SUBST(HANDLERSOCKET_SUBDIRS)
 CFLAGS="$CFLAGS -Werror"
 CXXFLAGS="$CXXFLAGS -Wall -g -fno-rtti -fno-exceptions -fPIC -DPIC"
 
+AC_CHECK_FUNC([strerror_r],
+  [
+    AC_LANG_PUSH([C++])
+    AC_MSG_CHECKING([if strerror_r is POSIX-compliant])
+    AC_TRY_COMPILE(
+      [
+#include <string.h>
+      ],
+      [
+int t = strerror_r(0, (char *)0, 0) * 2;
+      ],
+      [
+        AC_MSG_RESULT([yes])
+        AC_DEFINE([HAVE_POSIX_COMPLIANT_STRERROR_R], [1], [Define to 1 if libc has POSIX-compliant strerror_r()])
+      ],
+      [AC_MSG_RESULT([no])]
+    )
+    AC_MSG_CHECKING([if strerror_r is GNU-specific])
+    AC_TRY_COMPILE(
+      [
+#include <string.h>
+      ],
+      [
+char *t = 0;
+t = strerror_r(0, t, 0);
+      ],
+      [
+        AC_MSG_RESULT([yes])
+        AC_DEFINE([HAVE_GNU_SPECIFIC_STRERROR_R], [1], [Define to 1 if libc has GNU-compliant strerror_r()])
+      ],
+      [AC_MSG_RESULT([no])]
+    )
+    AC_LANG_POP
+  ]
+)
+  
+
 AC_CONFIG_FILES([Makefile
                  handlersocket/Makefile
                  libhsclient/Makefile

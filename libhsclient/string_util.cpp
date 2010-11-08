@@ -6,8 +6,14 @@
  * See COPYRIGHT.txt for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
+
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "string_util.hpp"
 
@@ -58,19 +64,51 @@ append_uint32(string_buffer& buf, uint32_t v)
 }
 
 std::string
+to_stdstring(const char *format, ...)
+{
+  va_list ap;
+  va_start(ap, format);
+
+  std::string buf;
+  buf.resize(64);
+  const std::size_t required = vsnprintf(&buf[0], buf.capacity(), format, ap);
+  if (required > buf.size())  {
+    buf.resize(required);
+    vsnprintf(&buf[0], buf.size(), format, ap);
+  } else {
+    buf.resize(required);
+  }
+  va_end(ap);
+  return buf;
+}
+
+std::string
 to_stdstring(uint32_t v)
 {
-  char buf[64];
-  snprintf(buf, sizeof(buf), "%lu", static_cast<unsigned long>(v));
-  return std::string(buf);
+  return to_stdstring("%lu", static_cast<unsigned long>(v));
 }
 
 int
 errno_string(const char *s, int en, std::string& err_r)
 {
-  char buf[64];
-  snprintf(buf, sizeof(buf), "%s: %d", s, en);
-  err_r = std::string(buf);
+#if defined(HAVE_POSIX_COMPLIANT_STRERROR_R)
+  char buf[512];
+  if (!strerror_r(en, buf, sizeof(buf))) {
+    std::string tmp(to_stdstring("%s: %s", s, buf));
+    err_r.swap(tmp);
+    return en;
+  }
+#elif defined(HAVE_GNU_SPECIFIC_STRERROR_R)
+  char buf[512];
+  char *p = strerror_r(en, buf, sizeof(buf));
+  if (p) {
+    std::string tmp(to_stdstring("%s: %s", s, p));
+    err_r.swap(tmp);
+    return en;
+  }
+#endif
+  std::string tmp(to_stdstring("%s: %d", s, en));
+  err_r.swap(tmp);
   return en;
 }
 

@@ -32,6 +32,7 @@ memchr_char(char *s, int c, size_t n)
 
 string_wref get_token(char *& wp, char *wp_end, char delim);
 uint32_t atoi_uint32_nocheck(const char *start, const char *finish);
+std::string to_stdstring(const char *format, ...);
 std::string to_stdstring(uint32_t v);
 void append_uint32(string_buffer& buf, uint32_t v);
 
