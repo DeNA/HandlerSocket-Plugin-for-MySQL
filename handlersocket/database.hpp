@@ -63,6 +63,8 @@ struct dbcallback_i {
   virtual void dbcb_resp_entry(const char *fld, size_t fldlen) = 0;
   virtual void dbcb_resp_end() = 0;
   virtual void dbcb_resp_cancel() = 0;
+  virtual void set_authorization( bool authorization ) = 0;
+  virtual bool get_authorization() = 0;
 };
 
 struct cmd_exec_args {
@@ -93,6 +95,8 @@ struct dbcontext_i {
   virtual void cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     const char *tbl, const char *idx, const char *retflds) = 0;
   virtual void cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
+    = 0;
+  virtual void cmd_authorization(dbcallback_i& cb, int type, const char *key )
     = 0;
   virtual void set_statistics(size_t num_conns, size_t num_active) = 0;
 };

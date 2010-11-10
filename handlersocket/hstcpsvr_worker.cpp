@@ -64,6 +64,7 @@ struct hstcpsvr_conn : public dbcallback_i {
   bool write_finished;
   time_t nb_last_io;
   hstcpsvr_conns_type::iterator conns_iter;
+  bool authorization;
  public:
   bool closed() const;
   bool ok_to_close() const;
@@ -80,10 +81,12 @@ struct hstcpsvr_conn : public dbcallback_i {
   virtual void dbcb_resp_entry(const char *fld, size_t fldlen);
   virtual void dbcb_resp_end();
   virtual void dbcb_resp_cancel();
+  virtual void set_authorization(bool authorization);
+  virtual bool get_authorization();
  public:
   hstcpsvr_conn() : addr_len(sizeof(addr)), readsize(4096),
     nonblocking(false), read_finished(false), write_finished(false),
-    nb_last_io(0) { }
+    nb_last_io(0), authorization(false) { }
 };
 
 bool
@@ -237,6 +240,18 @@ hstcpsvr_conn::dbcb_resp_cancel()
   cstate.resp_begin_pos = 0;
 }
 
+void
+hstcpsvr_conn::set_authorization(bool authorization)
+{
+  this->authorization = authorization;
+}
+
+bool
+hstcpsvr_conn::get_authorization()
+{
+  return this->authorization;
+}
+
 struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   hstcpsvr_worker(const hstcpsvr_worker_arg& arg);
   virtual void run();
@@ -254,6 +269,8 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   #endif
   bool accept_enabled;
   int accept_balance;
+  bool need_authorization;
+  bool need_authorization_wr;
  private:
   int run_one_nb();
   int run_one_ep();
@@ -262,6 +279,7 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   void do_open_index(char *start, char *finish, hstcpsvr_conn& conn);
   void do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     char *finish, hstcpsvr_conn& conn);
+  void do_authorization(char *start, char *finish, hstcpsvr_conn& conn);
 };
 
 hstcpsvr_worker::hstcpsvr_worker(const hstcpsvr_worker_arg& arg)
@@ -285,6 +303,12 @@ hstcpsvr_worker::hstcpsvr_worker(const hstcpsvr_worker_arg& arg)
     events_vec.resize(10240);
   }
   #endif
+  if (cshared.conf.get_str("secret" , "" ) !="") {
+    need_authorization = true;
+    need_authorization_wr = true;
+  } else if ( cshared.conf.get_str("secret_wr" , "" ) !="") {
+    need_authorization_wr = true;
+  }
   accept_balance = cshared.conf.get_int("accept_balance", 0);
 }
 
@@ -375,15 +399,15 @@ hstcpsvr_worker::run_one_nb()
     hstcpsvr_conn& conn = **i;
     if (conn.read_more()) {
       if (conn.cstate.readbuf.size() > 0) {
-	const char ch = conn.cstate.readbuf.begin()[0];
-	if (ch == 'Q') {
-	  vshared.shutdown = 1;
-	} else if (ch == '/') {
-	  conn.cstate.readbuf.clear();
-	  conn.cstate.writebuf.clear();
-	  conn.read_finished = true;
-	  conn.write_finished = true;
-	}
+    const char ch = conn.cstate.readbuf.begin()[0];
+    if (ch == 'Q') {
+      vshared.shutdown = 1;
+    } else if (ch == '/') {
+      conn.cstate.readbuf.clear();
+      conn.cstate.writebuf.clear();
+      conn.read_finished = true;
+      conn.write_finished = true;
+    }
       }
       conn.nb_last_io = now;
     }
@@ -416,7 +440,7 @@ hstcpsvr_worker::run_one_nb()
     }
     if ((pfd.revents & (mask_out | mask_in)) != 0) {
       if (conn.write_more()) {
-	conn.nb_last_io = now;
+    conn.nb_last_io = now;
       }
     }
     if (cshared.sockargs.timeout != 0 &&
@@ -436,15 +460,15 @@ hstcpsvr_worker::run_one_nb()
       c->readsize = cshared.readsize;
       c->accept(cshared);
       if (c->fd.get() >= 0) {
-	if (fcntl(c->fd.get(), F_SETFL, O_NONBLOCK) != 0) {
-	  fatal_abort("F_SETFL O_NONBLOCK");
-	}
-	c->nb_last_io = now;
-	conns.push_back_ptr(c);
+    if (fcntl(c->fd.get(), F_SETFL, O_NONBLOCK) != 0) {
+      fatal_abort("F_SETFL O_NONBLOCK");
+    }
+    c->nb_last_io = now;
+    conns.push_back_ptr(c);
       } else {
-	/* errno == 11 (EAGAIN) is not a fatal error. */
-	DENA_VERBOSE(100, fprintf(stderr,
-	  "accept failed: errno=%d (not fatal)\n", errno));
+    /* errno == 11 (EAGAIN) is not a fatal error. */
+    DENA_VERBOSE(100, fprintf(stderr,
+      "accept failed: errno=%d (not fatal)\n", errno));
       }
     }
   }
@@ -483,22 +507,22 @@ hstcpsvr_worker::run_one_ep()
       c->readsize = cshared.readsize;
       c->accept(cshared);
       if (c->fd.get() >= 0) {
-	if (fcntl(c->fd.get(), F_SETFL, O_NONBLOCK) != 0) {
-	  fatal_abort("F_SETFL O_NONBLOCK");
-	}
-	epoll_event cev = { };
-	cev.events = EPOLLIN | EPOLLOUT | EPOLLET;
-	cev.data.ptr = c.get();
-	c->nb_last_io = now;
-	const int fd = c->fd.get();
-	conns.push_back_ptr(c);
-	conns.back()->conns_iter = --conns.end();
-	if (epoll_ctl(epoll_fd.get(), EPOLL_CTL_ADD, fd, &cev) != 0) {
-	  fatal_abort("epoll_ctl EPOLL_CTL_ADD");
-	}
+    if (fcntl(c->fd.get(), F_SETFL, O_NONBLOCK) != 0) {
+      fatal_abort("F_SETFL O_NONBLOCK");
+    }
+    epoll_event cev = { };
+    cev.events = EPOLLIN | EPOLLOUT | EPOLLET;
+    cev.data.ptr = c.get();
+    c->nb_last_io = now;
+    const int fd = c->fd.get();
+    conns.push_back_ptr(c);
+    conns.back()->conns_iter = --conns.end();
+    if (epoll_ctl(epoll_fd.get(), EPOLL_CTL_ADD, fd, &cev) != 0) {
+      fatal_abort("epoll_ctl EPOLL_CTL_ADD");
+    }
       } else {
-	DENA_VERBOSE(100, fprintf(stderr,
-	  "accept failed: errno=%d (not fatal)\n", errno));
+    DENA_VERBOSE(100, fprintf(stderr,
+      "accept failed: errno=%d (not fatal)\n", errno));
       }
     } else {
       /* client connection */
@@ -506,11 +530,11 @@ hstcpsvr_worker::run_one_ep()
       DBG_EP(fprintf(stderr, "IN client\n"));
       bool more_data = false;
       while (conn->read_more(&more_data)) {
-	DBG_EP(fprintf(stderr, "IN client read_more\n"));
-	conn->nb_last_io = now;
-	if (!more_data) {
-	  break;
-	}
+    DBG_EP(fprintf(stderr, "IN client read_more\n"));
+    conn->nb_last_io = now;
+    if (!more_data) {
+      break;
+    }
       }
     }
   }
@@ -558,11 +582,11 @@ hstcpsvr_worker::run_one_ep()
       DBG_EP(fprintf(stderr, "OUT client\n"));
       bool more_data = false;
       while (conn->write_more(&more_data)) {
-	DBG_EP(fprintf(stderr, "OUT client write_more\n"));
-	conn->nb_last_io = now;
-	if (!more_data) {
-	  break;
-	}
+    DBG_EP(fprintf(stderr, "OUT client write_more\n"));
+    conn->nb_last_io = now;
+    if (!more_data) {
+      break;
+    }
       }
     }
   }
@@ -582,8 +606,8 @@ hstcpsvr_worker::run_one_ep()
       hstcpsvr_conns_type::iterator icur = i;
       ++i;
       if (cshared.sockargs.timeout != 0 &&
-	(*icur)->nb_last_io + cshared.sockargs.timeout < now) {
-	conns.erase_ptr((*icur)->conns_iter);
+    (*icur)->nb_last_io + cshared.sockargs.timeout < now) {
+    conns.erase_ptr((*icur)->conns_iter);
       }
     }
     last_check_time = now;
@@ -616,20 +640,20 @@ hstcpsvr_worker::run_one_ep()
     if (e_acc == accept_enabled) {
     } else if (e_acc) {
       if (epoll_ctl(epoll_fd.get(), EPOLL_CTL_ADD, cshared.listen_fd.get(), &ev)
-	!= 0) {
-	fatal_abort("epoll_ctl EPOLL_CTL_ADD");
+    != 0) {
+    fatal_abort("epoll_ctl EPOLL_CTL_ADD");
       }
     } else {
       if (epoll_ctl(epoll_fd.get(), EPOLL_CTL_DEL, cshared.listen_fd.get(), &ev)
-	!= 0) {
-	fatal_abort("epoll_ctl EPOLL_CTL_ADD");
+    != 0) {
+    fatal_abort("epoll_ctl EPOLL_CTL_ADD");
       }
     }
     accept_enabled = e_acc;
   }
   return 0;
 }
-#endif 
+#endif
 
 void
 hstcpsvr_worker::execute_lines(hstcpsvr_conn& conn)
@@ -663,6 +687,8 @@ hstcpsvr_worker::execute_line(char *start, char *finish, hstcpsvr_conn& conn)
   if (cmd_begin + 1 == cmd_end) {
     if (cmd_begin[0] == 'P') {
       return do_open_index(start, finish, conn);
+    } else if(cmd_begin[0] == 'A') {
+      return do_authorization(start, finish, conn);
     }
   }
   if (cmd_begin[0] >= '0' && cmd_begin[0] <= '9') {
@@ -674,6 +700,9 @@ hstcpsvr_worker::execute_line(char *start, char *finish, hstcpsvr_conn& conn)
 void
 hstcpsvr_worker::do_open_index(char *start, char *finish, hstcpsvr_conn& conn)
 {
+  if (need_authorization && !conn.authorization) {
+    return conn.dbcb_resp_short(2, "no_authorization");
+  }
   const size_t pst_id = read_ui32(start, finish);
   skip_one(start, finish);
   /* dbname */
@@ -707,6 +736,9 @@ void
 hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   char *finish, hstcpsvr_conn& conn)
 {
+  if (need_authorization && !conn.authorization) {
+    return conn.dbcb_resp_short(2, "no_authorization");
+  }
   cmd_exec_args args;
   const size_t pst_id = read_ui32(cmd_begin, cmd_end);
   if (pst_id >= conn.cstate.prep_stmts.size()) {
@@ -743,9 +775,15 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   args.skip = read_ui32(start, finish);
   if (start == finish) {
     /* no modification */
+    if (args.op == "+" && need_authorization_wr && !conn.authorization) {
+      return conn.dbcb_resp_short(2, "no_authorization");
+    }
     return dbctx->cmd_exec_on_index(conn, args);
   } else {
     /* update or delete */
+    if ( need_authorization_wr && !conn.authorization) {
+      return conn.dbcb_resp_short(2, "no_authorization");
+    }
     skip_one(start, finish);
     char *const mod_op_begin = start;
     read_token(start, finish);
@@ -765,6 +803,26 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     args.uvals = uflds;
     return dbctx->cmd_exec_on_index(conn, args);
   }
+}
+
+void
+hstcpsvr_worker::do_authorization(char *start, char *finish, hstcpsvr_conn& conn)
+{
+  /* auth type */
+  char *const authtype_begin = start;
+  read_token(start, finish);
+  char *const authtype_end = start;
+  skip_one(start, finish);
+  /* key */
+  char *const key_begin = start;
+  read_token(start, finish);
+  char *const key_end = start;
+  authtype_end[0] = 0;
+  key_end[0] = 0;
+  int auth_type = atoi(authtype_begin);
+  char *wp = key_begin;
+  unescape_string(wp, key_begin, key_end);
+  return dbctx->cmd_authorization(conn, auth_type, key_begin);
 }
 
 hstcpsvr_worker_ptr

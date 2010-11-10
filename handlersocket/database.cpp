@@ -140,6 +140,7 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   virtual void cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     const char *tbl, const char *idx, const char *retflds);
   virtual void cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args);
+  virtual void cmd_authorization(dbcallback_i& cb, int type, const char *key );
   virtual void set_statistics(size_t num_conns, size_t num_active);
  private:
   int set_thread_message(const char *fmt, ...)
@@ -378,7 +379,7 @@ dbcontext::lock_tables_if()
     size_t num_open = 0;
     for (size_t i = 0; i < num_max; ++i) {
       if (table_vec[i].refcount > 0) {
-	tables[num_open++] = table_vec[i].table;
+    tables[num_open++] = table_vec[i].table;
       }
     }
     #if MYSQL_VERSION_ID >= 50505
@@ -395,7 +396,7 @@ dbcontext::lock_tables_if()
     if (lock == 0) {
       lock_failed = true;
       DENA_VERBOSE(10, fprintf(stderr, "HNDSOCK failed to lock tables %p\n",
-	thd));
+    thd));
     }
     if (for_write_flag) {
       #if MYSQL_VERSION_ID >= 50505
@@ -421,9 +422,9 @@ dbcontext::unlock_tables_if()
       suc = (ha_autocommit_or_rollback(thd, 0) == 0);
       #endif
       if (!suc) {
-	commit_error = true;
-	DENA_VERBOSE(10, fprintf(stderr,
-	  "HNDSOCK unlock tables: commit failed\n"));
+    commit_error = true;
+    DENA_VERBOSE(10, fprintf(stderr,
+      "HNDSOCK unlock tables: commit failed\n"));
       }
     }
     mysql_unlock_tables(thd, lock);
@@ -498,12 +499,12 @@ dbcontext::resp_record(dbcallback_i& cb, TABLE *const table,
       fld->val_str(&rwpstr, &rwpstr);
       const size_t len = rwpstr.length();
       if (len != 0) {
-	/* non-empty */
-	cb.dbcb_resp_entry(rwpstr.ptr(), rwpstr.length());
+    /* non-empty */
+    cb.dbcb_resp_entry(rwpstr.ptr(), rwpstr.length());
       } else {
-	/* empty */
-	static const char empty_str[] = "";
-	cb.dbcb_resp_entry(empty_str, 0);
+    /* empty */
+    static const char empty_str[] = "";
+    cb.dbcb_resp_entry(empty_str, 0);
       }
     }
   }
@@ -646,9 +647,9 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       const KEY_PART_INFO & kpt = kinfo.key_part[i];
       const string_ref& kval = args.kvals[i];
       if (kval.begin() == 0) {
-	kpt.field->set_null();
+    kpt.field->set_null();
       } else {
-	kpt.field->set_notnull();
+    kpt.field->set_notnull();
       }
       kpt.field->store(kval.begin(), kval.size(), &my_charset_bin);
       kplen_sum += kpt.length;
@@ -682,24 +683,24 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       switch (find_flag) {
       case HA_READ_BEFORE_KEY:
       case HA_READ_KEY_OR_PREV:
-	r = hnd->index_prev(table->record[0]);
-	break;
+    r = hnd->index_prev(table->record[0]);
+    break;
       case HA_READ_AFTER_KEY:
       case HA_READ_KEY_OR_NEXT:
-	r = hnd->index_next(table->record[0]);
-	break;
+    r = hnd->index_next(table->record[0]);
+    break;
       case HA_READ_KEY_EXACT:
-	r = hnd->index_next_same(table->record[0], key_buf, kplen_sum);
-	break;
+    r = hnd->index_next_same(table->record[0], key_buf, kplen_sum);
+    break;
       default:
-	r = HA_ERR_END_OF_FILE; /* to finish the loop */
-	break;
+    r = HA_ERR_END_OF_FILE; /* to finish the loop */
+    break;
       }
     }
     if (debug_out) {
       fprintf(stderr, "r=%d\n", r);
-      if (r == 0 || r == HA_ERR_RECORD_DELETED) { 
-	dump_record(cb, table, pst);
+      if (r == 0 || r == HA_ERR_RECORD_DELETED) {
+    dump_record(cb, table, pst);
       }
     }
     if (r != 0) {
@@ -708,9 +709,9 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       --skip;
     } else {
       if (!modify_op_flag) {
-	resp_record(cb, table, pst);
+    resp_record(cb, table, pst);
       } else {
-	r = modify_record(cb, table, pst, args, mod_op, mod_success_count);
+    r = modify_record(cb, table, pst, args, mod_op, mod_success_count);
       }
     }
     if (r != 0 && r != HA_ERR_RECORD_DELETED) {
@@ -768,8 +769,8 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     #endif
     if (table == 0) {
       DENA_VERBOSE(10, fprintf(stderr,
-	"HNDSOCK failed to open %p [%s] [%s] [%d]\n",
-	thd, dbn, tbl, static_cast<int>(refresh)));
+    "HNDSOCK failed to open %p [%s] [%s] [%d]\n",
+    thd, dbn, tbl, static_cast<int>(refresh)));
       return cb.dbcb_resp_short(2, "open_table");
     }
     statistic_increment(open_tables_count, &LOCK_status);
@@ -795,8 +796,8 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     for (uint i = 0; i < table->s->keys; ++i) {
       KEY& kinfo = table->key_info[i];
       if (strcmp(kinfo.name, idx_name_to_open) == 0) {
-	idxnum = i;
-	break;
+    idxnum = i;
+    break;
       }
     }
   }
@@ -817,12 +818,12 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
       DBG_FLD(fprintf(stderr, "f %s\n", (*fld)->field_name));
       string_ref fn((*fld)->field_name, strlen((*fld)->field_name));
       if (fn == fldnms[i]) {
-	break;
+    break;
       }
     }
     if (*fld == 0) {
       DBG_FLD(fprintf(stderr, "UNKNOWN FLD %s [%s]\n", retflds,
-	std::string(fldnms[i].begin(), fldnms[i].size()).c_str()));
+    std::string(fldnms[i].begin(), fldnms[i].size()).c_str()));
       return cb.dbcb_resp_short(2, "fld");
     }
     DBG_FLD(fprintf(stderr, "FLD %s %zu\n", (*fld)->field_name, j));
@@ -893,6 +894,34 @@ dbcontext::cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
   case db_write_op_sql:
     return cmd_sql_internal(cb, p, args.kvals, args.kvalslen);
   }
+}
+
+void
+dbcontext::cmd_authorization(dbcallback_i& cb, int type, const char* key )
+{
+  std::string secret;
+  if (for_write_flag && dbref->get_conf().get_str("secret_wr" , "" )!="") {
+    secret = dbref->get_conf().get_str("secret_wr" , "" );
+  } else {
+    secret = dbref->get_conf().get_str("secret" , "" );
+  }
+  switch (type) {
+  case 1:
+    if (secret == key) {
+      cb.set_authorization(true);
+        cb.dbcb_resp_short(0 , "" );
+    } else {
+      /* authenticated failed */
+      cb.set_authorization(false);
+      cb.dbcb_resp_short(2, "authorization" );
+    }
+    break;
+  default:
+    cb.set_authorization(false);
+    cb.dbcb_resp_short(2, "authtype");
+    break;
+  }
+  return;
 }
 
 void
