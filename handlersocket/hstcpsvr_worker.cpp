@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <signal.h>
 #include <list>
+#include <vector>
 #if __linux__
 #include <sys/epoll.h>
 #endif
@@ -35,6 +36,17 @@
 
 namespace dena {
 
+struct hstcpsvr_conn;
+
+struct dbrequest {
+  hstcpsvr_conn *conn_backref;
+  cmd_open_args open_args;
+  cmd_exec_args exec_args;
+  std::vector<string_ref> work_flds;
+  std::vector<string_ref> work_uflds;
+  dbrequest(hstcpsvr_conn *conn) : conn_backref(conn) { }
+};
+
 struct dbconnstate {
   string_buffer readbuf;
   string_buffer writebuf;
@@ -49,7 +61,6 @@ struct dbconnstate {
   dbconnstate() : resp_begin_pos(0) { }
 };
 
-struct hstcpsvr_conn;
 typedef auto_ptrcontainer< std::list<hstcpsvr_conn *> > hstcpsvr_conns_type;
 
 struct hstcpsvr_conn : public dbcallback_i {
@@ -66,6 +77,7 @@ struct hstcpsvr_conn : public dbcallback_i {
   time_t nb_last_io;
   hstcpsvr_conns_type::iterator conns_iter;
   bool authorized;
+  dbrequest req_work;
  public:
   bool closed() const;
   bool ok_to_close() const;
@@ -86,7 +98,7 @@ struct hstcpsvr_conn : public dbcallback_i {
  public:
   hstcpsvr_conn() : addr_len(sizeof(addr)), readsize(4096),
     nonblocking(false), read_finished(false), write_finished(false),
-    nb_last_io(0), authorized(false) { }
+    nb_last_io(0), authorized(false), req_work(this) { }
 };
 
 bool
