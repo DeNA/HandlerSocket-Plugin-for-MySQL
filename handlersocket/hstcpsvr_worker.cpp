@@ -100,14 +100,11 @@ struct dbconnstate {
   string_buffer readbuf;
   string_buffer writebuf;
   std::vector<prep_stmt> prep_stmts;
-  size_t resp_begin_pos;
   void reset() {
     readbuf.clear();
     writebuf.clear();
     prep_stmts.clear();
-    resp_begin_pos = 0;
   }
-  dbconnstate() : resp_begin_pos(0) { }
 };
 
 typedef auto_ptrcontainer< std::list<hstcpsvr_conn *> > hstcpsvr_conns_type;
