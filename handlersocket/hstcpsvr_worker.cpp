@@ -59,9 +59,9 @@ struct dbrequest : public dbcallback_i {
   dbrequest(hstcpsvr_conn *conn)
     : conn_backref(conn), respbuf(0), resp_begin_pos(0),
       cmd(dbrequest_cmd_none), executed(false) { }
-  void reset_cmd_none() {
+  void reset_cmd_none(string_buffer *resp) {
     cmd = dbrequest_cmd_none;
-    respbuf = 0;
+    respbuf = resp;
     resp_begin_pos = 0;
     executed = false;
   }
@@ -728,11 +728,13 @@ hstcpsvr_worker::execute_line(char *start, char *finish, dbrequest& req,
   char *const cmd_end = start;
   skip_one(start, finish);
   if (cmd_begin == cmd_end) {
+    req.reset_cmd_none(&conn.cstate.writebuf);
     return req.dbcb_resp_short(2, "cmd");
   }
   if (cmd_begin + 1 == cmd_end) {
     if (cmd_begin[0] == 'P') {
       if (cshared.require_auth && !conn.authorized) {
+	req.reset_cmd_none(&conn.cstate.writebuf);
 	return req.dbcb_resp_short(3, "unauth");
       }
       return do_open_index(start, finish, req, conn);
@@ -743,10 +745,12 @@ hstcpsvr_worker::execute_line(char *start, char *finish, dbrequest& req,
   }
   if (cmd_begin[0] >= '0' && cmd_begin[0] <= '9') {
     if (cshared.require_auth && !conn.authorized) {
+      req.reset_cmd_none(&conn.cstate.writebuf);
       return req.dbcb_resp_short(3, "unauth");
     }
     return do_exec_on_index(cmd_begin, cmd_end, start, finish, req, conn);
   }
+  req.reset_cmd_none(&conn.cstate.writebuf);
   return req.dbcb_resp_short(2, "cmd");
 }
 
