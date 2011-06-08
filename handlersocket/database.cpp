@@ -801,7 +801,12 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     if (is_first) {
       is_first = false;
       const key_part_map kpm = (1U << args.kvalslen) - 1;
-      r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      if (args.op.begin()[0] == '^') {
+        r = hnd->index_read_last_map(table->record[0], key_buf, kpm);
+      }
+      else {
+        r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      }
       if (args.invalues_keypart >= 0) {
           in_loop = true;
       }
@@ -811,13 +816,22 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       }
       kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
       const key_part_map kpm = (1U << args.kvalslen) - 1;
-      r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      if (args.op.begin()[0] == '^') {
+          r = hnd->index_read_last_map(table->record[0], key_buf, kpm);
+      } else {
+          r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      }
       in_loop = true;
     } else {
       switch (find_flag) {
       case HA_READ_BEFORE_KEY:
       case HA_READ_KEY_OR_PREV:
 	r = hnd->index_prev(table->record[0]);
+          if (args.op.begin()[0] == '^') {
+            if (key_cmp_if_same(table, key_buf, hnd->active_index, kplen_sum)) {
+              r = HA_ERR_END_OF_FILE; /* to finish the loop */
+            }
+          }
 	break;
       case HA_READ_AFTER_KEY:
       case HA_READ_KEY_OR_NEXT:
@@ -1151,6 +1165,9 @@ dbcontext::cmd_exec(dbcallback_i& cb, const cmd_exec_args& args)
       find_flag = HA_READ_KEY_OR_NEXT;
       break;
     case '<':
+      find_flag = HA_READ_KEY_OR_PREV;
+      break;
+    case '^':
       find_flag = HA_READ_KEY_OR_PREV;
       break;
     default:
