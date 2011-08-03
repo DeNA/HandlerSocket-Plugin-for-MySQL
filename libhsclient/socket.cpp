@@ -146,7 +146,7 @@ socket_connect(auto_file& fd, const socket_args& args, std::string& err_r)
       struct pollfd fds[1];
       int    nfds = 1;
       fds[0].fd = fd.get();
-      fds[0].events = POLLIN;
+      fds[0].events = POLLIN|POLLOUT;
       if( poll(fds,nfds, 1000*args.timeout) <= 0){
         return errno_string("connect poll", errno, err_r);
       }
