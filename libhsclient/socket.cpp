@@ -150,7 +150,7 @@ socket_connect(auto_file& fd, const socket_args& args, std::string& err_r)
       if( poll(fds,nfds, 1000*args.timeout) <= 0){
         return errno_string("connect poll", errno, err_r);
       }
-      if (fcntl(fd.get(), F_SETFL, fcntl(fd.get(), F_GETFL) & ~O_NONBLOCK)) {
+      if (fcntl(fd.get(), F_SETFL, fcntl(fd.get(), F_GETFL) & ~O_NONBLOCK) != 0) {
         return errno_string("fcntl ~O_NONBLOCK", errno, err_r);
       }
     }
