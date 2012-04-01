@@ -800,26 +800,26 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     if (is_first) {
       is_first = false;
       const key_part_map kpm = (1U << args.kvalslen) - 1;
-      r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      r = hnd->ha_index_read_map(table->record[0], key_buf, kpm, find_flag);
     } else if (args.invalues_keypart >= 0) {
       if (++invalues_idx >= args.invalueslen) {
 	break;
       }
       kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
       const key_part_map kpm = (1U << args.kvalslen) - 1;
-      r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      r = hnd->ha_index_read_map(table->record[0], key_buf, kpm, find_flag);
     } else {
       switch (find_flag) {
       case HA_READ_BEFORE_KEY:
       case HA_READ_KEY_OR_PREV:
-	r = hnd->index_prev(table->record[0]);
+	r = hnd->ha_index_prev(table->record[0]);
 	break;
       case HA_READ_AFTER_KEY:
       case HA_READ_KEY_OR_NEXT:
-	r = hnd->index_next(table->record[0]);
+	r = hnd->ha_index_next(table->record[0]);
 	break;
       case HA_READ_KEY_EXACT:
-	r = hnd->index_next_same(table->record[0], key_buf, kplen_sum);
+	r = hnd->ha_index_next_same(table->record[0], key_buf, kplen_sum);
 	break;
       default:
 	r = HA_ERR_END_OF_FILE; /* to finish the loop */
