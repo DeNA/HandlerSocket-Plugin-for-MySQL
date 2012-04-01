@@ -40,7 +40,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
           MYSQL_SOURCE_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
         else
           if test -f "$ac_mysql_source_dir/configure.in"; then
-            MYSQL_SOURCE_VERSION=`cat $ac_mysql_source_dir/configure.in | grep "\[[MySQL Server\]]" | sed -e "s|.*\([[0-9]]\+\.[[0-9]]\+\.[[0-9]]\+[[0-9a-zA-Z\_\-]]*\).*|\1|"`
+            MYSQL_SOURCE_VERSION=`cat $ac_mysql_source_dir/configure.in | grep "\[[\(MariaDB\|MySQL\) Server\]]" | sed -e "s|.*\([[0-9]]\+\.[[0-9]]\+\.[[0-9]]\+[[0-9a-zA-Z\_\-]]*\).*|\1|"`
           else
             AC_MSG_ERROR([invalid MySQL source directory: $ac_mysql_source_dir])
           fi
