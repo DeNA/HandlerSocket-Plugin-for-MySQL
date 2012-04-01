@@ -246,12 +246,12 @@ wait_server_to_start(THD *thd, volatile int& shutdown_flag)
       &abstime);
     pthread_mutex_unlock(&LOCK_server_started);
     pthread_mutex_lock(&thd->mysys_var->mutex);
-    THD::killed_state st = thd->killed;
+    int killed = thd_killed(thd);
     pthread_mutex_unlock(&thd->mysys_var->mutex);
-    DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d\n", (int)st));
+    DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d\n", killed));
     pthread_mutex_lock(&LOCK_server_started);
-    if (st != THD::NOT_KILLED) {
-      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d break\n", (int)st));
+    if (killed) {
+      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d break\n", killed));
       r = -1;
       break;
     }
@@ -358,12 +358,12 @@ bool
 dbcontext::check_alive()
 {
   pthread_mutex_lock(&thd->mysys_var->mutex);
-  THD::killed_state st = thd->killed;
+  int killed = thd_killed(thd);
   pthread_mutex_unlock(&thd->mysys_var->mutex);
-  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %p %p %d %zu\n", thd, &thd->killed,
+  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %p %p %d %u\n", thd, killed,
     (int)st, sizeof(*thd)));
-  if (st != THD::NOT_KILLED) {
-    DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d break\n", (int)st));
+  if (killed) {
+    DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d break\n", killed));
     return false;
   }
   return true;
