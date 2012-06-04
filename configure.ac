@@ -8,6 +8,9 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_SRCDIR([libhsclient/fatal.cpp])
 AC_CONFIG_MACRO_DIR([m4])
 
+# For automake >= 1.12
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
