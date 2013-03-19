@@ -43,6 +43,10 @@
 #include "mysql_priv.h"
 #endif
 
+#if MYSQL_VERSION_ID >= 50600
+#include <global_threads.h>
+#endif
+
 #undef min
 #undef max
 

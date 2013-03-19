@@ -309,8 +309,12 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
   {
     pthread_mutex_lock(&LOCK_thread_count);
     thd->thread_id = thread_id++;
+    #if MYSQL_VERSION_ID >= 50600
+    add_global_thread(thd);
+    #else
     threads.append(thd);
     ++thread_count;
+    #endif
     pthread_mutex_unlock(&LOCK_thread_count);
   }
 
@@ -346,9 +350,13 @@ dbcontext::term_thread()
   my_pthread_setspecific_ptr(THR_THD, 0);
   {
     pthread_mutex_lock(&LOCK_thread_count);
+    #if MYSQL_VERSION_ID >= 50600
+    remove_global_thread(thd);
+    #else
+    --thread_count;
+    #endif
     delete thd;
     thd = 0;
-    --thread_count;
     pthread_mutex_unlock(&LOCK_thread_count);
     my_thread_end();
   }
@@ -763,7 +771,11 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     return cb.dbcb_resp_short(2, "idxnum");
   }
   KEY& kinfo = table->key_info[pst.get_idxnum()];
+  #if MYSQL_VERSION_ID >= 50600
+  if (args.kvalslen > kinfo.actual_key_parts) {
+  #else
   if (args.kvalslen > kinfo.key_parts) {
+  #endif
     return cb.dbcb_resp_short(2, "kpnum");
   }
   uchar *const key_buf = DENA_ALLOCA_ALLOCATE(uchar, kinfo.key_length);
@@ -812,11 +824,19 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       switch (find_flag) {
       case HA_READ_BEFORE_KEY:
       case HA_READ_KEY_OR_PREV:
+	#if MYSQL_VERSION_ID >= 50600
+	r = hnd->ha_index_prev(table->record[0]);
+	#else
 	r = hnd->index_prev(table->record[0]);
+	#endif
 	break;
       case HA_READ_AFTER_KEY:
       case HA_READ_KEY_OR_NEXT:
+	#if MYSQL_VERSION_ID >= 50600
+	r = hnd->ha_index_next(table->record[0]);
+	#else
 	r = hnd->index_next(table->record[0]);
+	#endif
 	break;
       case HA_READ_KEY_EXACT:
 	r = hnd->index_next_same(table->record[0], key_buf, kplen_sum);
@@ -1015,7 +1035,11 @@ dbcontext::cmd_open(dbcallback_i& cb, const cmd_open_args& arg)
     tables.mdl_request.init(MDL_key::TABLE, arg.dbn, arg.tbl,
       for_write_flag ? MDL_SHARED_WRITE : MDL_SHARED_READ, MDL_TRANSACTION);
     Open_table_context ot_act(thd, 0);
+    #if MYSQL_VERSION_ID >= 50600
+    if (!open_table(thd, &tables, &ot_act)) {
+    #else
     if (!open_table(thd, &tables, thd->mem_root, &ot_act)) {
+    #endif
       table = tables.table;
     }
     #else
