@@ -318,9 +318,9 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
     pthread_mutex_unlock(&LOCK_thread_count);
   }
 
-  DBG_THR(fprintf(stderr, "HNDSOCK init thread wsts\n"));
+  DBG_THR(fprintf(stderr, "HNDSOCK %p init thread wsts\n", thd));
   wait_server_to_start(thd, shutdown_flag);
-  DBG_THR(fprintf(stderr, "HNDSOCK init thread done\n"));
+  DBG_THR(fprintf(stderr, "HNDSOCK %p init thread done\n", thd));
 
   thd_proc_info(thd, &info_message_buf[0]);
   set_thread_message("hs:listening");

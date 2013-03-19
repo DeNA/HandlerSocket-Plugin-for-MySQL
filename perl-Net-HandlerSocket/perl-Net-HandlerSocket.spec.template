@@ -22,7 +22,7 @@ group:     System Environment/Libraries
 buildroot: %{_tmppath}/%{name}-%{version}-%(id -u -n)
 prefix:    %(echo %{_prefix})
 source:    perl-Net-HandlerSocket.tar.gz
-BuildRequires: libhsclient
+BuildRequires: libhsclient perl-Test-Simple
 Requires: libhsclient
 Obsoletes: perl-DB-HandlerSocket
 
