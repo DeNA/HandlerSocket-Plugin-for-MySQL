@@ -33,3 +33,4 @@ regtest/*/*.log
 regtest/*/*.log2
 regtest/*/DONE
 dist/*
+ar-lib

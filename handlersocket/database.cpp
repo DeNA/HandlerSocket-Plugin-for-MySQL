@@ -812,14 +812,22 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     if (is_first) {
       is_first = false;
       const key_part_map kpm = (1U << args.kvalslen) - 1;
+      #if MYSQL_VERSION_ID >= 50611
+      r = hnd->ha_index_read_map(table->record[0], key_buf, kpm, find_flag);
+      #else
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      #endif
     } else if (args.invalues_keypart >= 0) {
       if (++invalues_idx >= args.invalueslen) {
 	break;
       }
       kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
       const key_part_map kpm = (1U << args.kvalslen) - 1;
+      #if MYSQL_VERSION_ID >= 50611
+      r = hnd->ha_index_read_map(table->record[0], key_buf, kpm, find_flag);
+      #else
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      #endif
     } else {
       switch (find_flag) {
       case HA_READ_BEFORE_KEY:
@@ -839,7 +847,11 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
 	#endif
 	break;
       case HA_READ_KEY_EXACT:
+	#if MYSQL_VERSION_ID >= 50611
+	r = hnd->ha_index_next_same(table->record[0], key_buf, kplen_sum);
+	#else
 	r = hnd->index_next_same(table->record[0], key_buf, kplen_sum);
+	#endif
 	break;
       default:
 	r = HA_ERR_END_OF_FILE; /* to finish the loop */
