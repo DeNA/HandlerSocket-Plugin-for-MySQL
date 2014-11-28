@@ -349,10 +349,12 @@ dbcontext::term_thread()
   unlock_tables_if();
   my_pthread_setspecific_ptr(THR_THD, 0);
   {
-    pthread_mutex_lock(&LOCK_thread_count);
     #if MYSQL_VERSION_ID >= 50600
     remove_global_thread(thd);
-    #else
+    #endif
+
+    pthread_mutex_lock(&LOCK_thread_count);
+    #if MYSQL_VERSION_ID < 50600
     --thread_count;
     #endif
     delete thd;
