@@ -346,7 +346,7 @@ void
 dbcontext::term_thread()
 {
   DBG_THR(fprintf(stderr, "HNDSOCK thread end %p\n", thd));
-  unlock_tables_if();
+  close_tables_if();
   my_pthread_setspecific_ptr(THR_THD, 0);
   {
     #if MYSQL_VERSION_ID >= 50600
