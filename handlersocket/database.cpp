@@ -183,6 +183,8 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   std::vector<char> info_message_buf;
   table_vec_type table_vec;
   table_map_type table_map;
+  String val_buffer;
+  String val_ptr;
 };
 
 database::database(const config& c)
@@ -518,8 +520,6 @@ void
 dbcontext::resp_record(dbcallback_i& cb, TABLE *const table,
   const prep_stmt& pst)
 {
-  char rwpstr_buf[64];
-  String rwpstr(rwpstr_buf, sizeof(rwpstr_buf), &my_charset_bin);
   const prep_stmt::fields_type& rf = pst.get_ret_fields();
   const size_t n = rf.size();
   for (size_t i = 0; i < n; ++i) {
@@ -530,11 +530,11 @@ dbcontext::resp_record(dbcallback_i& cb, TABLE *const table,
       /* null */
       cb.dbcb_resp_entry(0, 0);
     } else {
-      fld->val_str(&rwpstr, &rwpstr);
-      const size_t len = rwpstr.length();
+      String *const val = fld->val_str(&val_buffer, &val_ptr);
+      const size_t len = val->length();
       if (len != 0) {
 	/* non-empty */
-	cb.dbcb_resp_entry(rwpstr.ptr(), rwpstr.length());
+	cb.dbcb_resp_entry(val->ptr(), val->length());
       } else {
 	/* empty */
 	static const char empty_str[] = "";
@@ -548,8 +548,6 @@ void
 dbcontext::dump_record(dbcallback_i& cb, TABLE *const table,
   const prep_stmt& pst)
 {
-  char rwpstr_buf[64];
-  String rwpstr(rwpstr_buf, sizeof(rwpstr_buf), &my_charset_bin);
   const prep_stmt::fields_type& rf = pst.get_ret_fields();
   const size_t n = rf.size();
   for (size_t i = 0; i < n; ++i) {
@@ -559,8 +557,8 @@ dbcontext::dump_record(dbcallback_i& cb, TABLE *const table,
       /* null */
       fprintf(stderr, "NULL");
     } else {
-      fld->val_str(&rwpstr, &rwpstr);
-      const std::string s(rwpstr.ptr(), rwpstr.length());
+      String *const val = fld->val_str(&val_buffer, &val_ptr);
+      const std::string s(val->ptr(), val->length());
       fprintf(stderr, "[%s]", s.c_str());
     }
   }
