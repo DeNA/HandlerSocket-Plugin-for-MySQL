@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/un.h>
+#include <poll.h>
 
 #include "socket.hpp"
 #include "string_util.hpp"
@@ -127,10 +128,31 @@ socket_connect(auto_file& fd, const socket_args& args, std::string& err_r)
   if ((r = socket_open(fd, args, err_r)) != 0) {
     return r;
   }
+
+  if(!args.nonblocking ) {
+    if (fcntl(fd.get(), F_SETFL, O_NONBLOCK) != 0) {
+      return errno_string("fcntl O_NONBLOCK", errno, err_r);
+    }
+  }
+
+
   if (connect(fd.get(), reinterpret_cast<const sockaddr *>(&args.addr),
     args.addrlen) != 0) {
-    if (!args.nonblocking || errno != EINPROGRESS) {
+    if (errno != EINPROGRESS) {
       return errno_string("connect", errno, err_r);
+    }
+    // disable NONBLOCK and wait for connect or timeout
+    if(!args.nonblocking) {
+      struct pollfd fds[1];
+      int    nfds = 1;
+      fds[0].fd = fd.get();
+      fds[0].events = POLLIN|POLLOUT;
+      if( poll(fds,nfds, 1000*args.timeout) <= 0){
+        return errno_string("connect poll", errno, err_r);
+      }
+      if (fcntl(fd.get(), F_SETFL, fcntl(fd.get(), F_GETFL) & ~O_NONBLOCK) != 0) {
+        return errno_string("fcntl ~O_NONBLOCK", errno, err_r);
+      }
     }
   }
   return 0;
