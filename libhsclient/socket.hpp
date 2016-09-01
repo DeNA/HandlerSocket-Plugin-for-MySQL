@@ -30,7 +30,7 @@ struct socket_args {
   bool use_epoll;
   int sndbuf;
   int rcvbuf;
-  socket_args() : addr(), addrlen(0), family(AF_INET), socktype(SOCK_STREAM),
+  socket_args() : addr(), addrlen(0), family(AF_INET6), socktype(SOCK_STREAM),
     protocol(0), timeout(600), listen_backlog(256),
     reuseaddr(true), nonblocking(false), use_epoll(false),
     sndbuf(0), rcvbuf(0) { }
