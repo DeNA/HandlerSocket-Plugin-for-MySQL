@@ -522,7 +522,7 @@ execute_multi(obj, cmds)
 CODE:
   DBG(fprintf(stderr, "execute_multi0\n"));
   const I32 cmdsmax = av_len(cmds);
-  execute_arg args[cmdsmax + 1]; /* GNU */
+  execute_arg *args = new execute_arg[cmdsmax + 1];
   for (I32 i = 0; i <= cmdsmax; ++i) {
     AV *const avtarget = arr_get_arrval(cmds, cmdsmax, i);
     if (avtarget == 0) {
@@ -550,6 +550,7 @@ CODE:
       ag.filters, ag.invalues_keypart, ag.invalues));
   }
   RETVAL = execute_multi_internal(obj, args, cmdsmax + 1);
+  delete [] args;
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
