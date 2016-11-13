@@ -8,6 +8,8 @@
 
 #include <stdexcept>
 
+#include <errno.h>
+
 #include "hstcpcli.hpp"
 #include "auto_file.hpp"
 #include "string_util.hpp"
@@ -125,9 +127,18 @@ hstcpcli::read_more()
 {
   const size_t block_size = 4096; // FIXME
   char *const wp = readbuf.make_space(block_size);
-  const ssize_t rlen = read(fd.get(), wp, block_size);
+
+  ssize_t rlen;
+again:
+  rlen = read(fd.get(), wp, block_size);
   if (rlen <= 0) {
-    if (rlen < 0) {
+    if (errno == EINTR) {
+      if (sargs.nonblocking) {
+        error_str = "read: interrupted";
+      } else {
+        goto again;
+      }
+    } else if (rlen < 0) {
       error_str = "read: failed";
     } else {
       error_str = "read: eof";
