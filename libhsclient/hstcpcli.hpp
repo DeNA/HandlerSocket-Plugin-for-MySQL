@@ -30,7 +30,11 @@ struct hstcpcli_filter {
 };
 
 struct hstcpcli_i;
-typedef std::auto_ptr<hstcpcli_i> hstcpcli_ptr;
+#if __cplusplus >= 201103L || (defined(_CPPLIB_VER) && _CPPLIB_VER >= 520)
+typedef std::unique_ptr<hstcpcli_i> hstcpcli_ptr;
+#else
+typedef std::auto_ptr<hstcpcli_i>   hstcpcli_ptr;
+#endif
 
 struct hstcpcli_i {
   virtual ~hstcpcli_i() { }
