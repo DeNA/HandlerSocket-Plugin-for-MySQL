@@ -9,10 +9,12 @@ WriteMakefile(
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/Net/HandlerSocket.pm', # retrieve abstract from module
        AUTHOR         => 'higuchi dot akira at dena dot jp>') : ()),
-    CC                => 'g++ -fPIC',
-    LD                => 'g++ -fPIC',
-    LIBS              => ['-L../libhsclient -L../libhsclient/.libs -lhsclient'],
+    CC                => 'g++',
+    CCFLAGS           => '-fPIC -Werror=vla',
+    LD                => '$(CC)',
+    LDFLAGS           => '-fPIC',
+    XSOPT             => '-C++',
+    LIBS              => ['-lhsclient'],
     DEFINE            => '',
-    INC               => '-I. -I../libhsclient',
     OPTIMIZE          => '-g -O3 -Wall -Wno-unused',
 );

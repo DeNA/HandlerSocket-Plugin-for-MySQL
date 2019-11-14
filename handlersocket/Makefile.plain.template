@@ -4,7 +4,7 @@ MYSQL_LIB = HANDLERSOCKET_MYSQL_LIB
 
 CXX = g++ -Wall -g -fno-rtti -fno-exceptions -fPIC -DPIC
 LIBS = $(MYSQL_LIB) -lhsclient -lpthread -lz
-CXXFLAGS = -I/usr/include/handlersocket $(MYSQL_INC)
+CXXFLAGS = -I../libhsclient $(MYSQL_INC)
 LDFLAGS =
 
 CXXFLAGS += -O3 -DNDEBUG

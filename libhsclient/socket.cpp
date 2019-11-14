@@ -127,9 +127,17 @@ socket_connect(auto_file& fd, const socket_args& args, std::string& err_r)
   if ((r = socket_open(fd, args, err_r)) != 0) {
     return r;
   }
+
+again:
   if (connect(fd.get(), reinterpret_cast<const sockaddr *>(&args.addr),
     args.addrlen) != 0) {
-    if (!args.nonblocking || errno != EINPROGRESS) {
+    if (errno == EINTR) {
+      if (args.nonblocking) {
+        return errno_string("connect", errno, err_r);
+      } else {
+        goto again;
+      }
+    } else if (!args.nonblocking || errno != EINPROGRESS) {
       return errno_string("connect", errno, err_r);
     }
   }
