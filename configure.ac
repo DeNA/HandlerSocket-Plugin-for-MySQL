@@ -5,6 +5,7 @@
 AC_INIT([handlersocket-plugin], [1.1.1], [https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL/issues])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 AC_CONFIG_SRCDIR([libhsclient/fatal.cpp])
 AC_CONFIG_MACRO_DIR([m4])
 

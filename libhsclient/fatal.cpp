@@ -22,7 +22,7 @@ fatal_exit(const std::string& message)
 {
   fprintf(stderr, "FATAL_EXIT: %s\n", message.c_str());
   syslog(opt_syslog, "FATAL_EXIT: %s", message.c_str());
-  _exit(1);
+  _Exit(1);
 }
 
 void
